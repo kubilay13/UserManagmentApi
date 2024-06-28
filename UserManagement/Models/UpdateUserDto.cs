@@ -2,9 +2,8 @@
 
 namespace UserManagement.Models
 {
-    public class ResponseModel
+    public class UpdateUserDto
     {
-        public int Id { get; set; }
         [MaxLength(15, ErrorMessage = "Kullanıcı adı en fazla 15 karakter olabilir.")]
         public string? UserName { get; set; }
 

@@ -5,6 +5,7 @@ using UserManagement.AppDbContext;
 using UserManagement.Models;
 using System.Security.Cryptography;
 
+
 namespace UserManagement.Controllers
 {
     [Route("api/[controller]")]
@@ -18,29 +19,46 @@ namespace UserManagement.Controllers
             _context = context;
         }
         [HttpPost("AddUser")]
-        public async Task<IActionResult> AddUser([FromBody] ResponseModel userRequest)
+        public async Task<IActionResult> AddUser([FromBody] UpdateUserDto userDto)
         {
             try
             {
-
-                var response = new ResponseModel
-                {
-                    UserName = userRequest.UserName,
-                    SurName = userRequest.SurName,
-                    UserStatus = userRequest.UserStatus,
-                    Age = userRequest.Age,
-                    TcNo = userRequest.TcNo,
-                    PhoneCode = userRequest.PhoneCode,
-                    PhoneNo = userRequest.PhoneNo,
-                    Password = userRequest.Password
-                };
-                if (userRequest == null)
+                if (userDto == null)
                 {
                     return BadRequest("User creation failed");
                 }
-                await _context.ResponseModels.AddAsync(userRequest);
+
+                string hashedPassword = BCrypt.Net.BCrypt.HashPassword(userDto.Password);
+
+                // Yeni kullanıcı oluştur
+                var newUser = new ResponseModel
+                {
+                    UserName = userDto.UserName,
+                    SurName = userDto.SurName,
+                    UserStatus = userDto.UserStatus,
+                    Age = userDto.Age,
+                    TcNo = userDto.TcNo,
+                    PhoneCode = userDto.PhoneCode,
+                    PhoneNo = userDto.PhoneNo,
+                    Password = hashedPassword // Hashlenmiş şifreyi kaydet
+                };
+
+                await _context.ResponseModels.AddAsync(newUser);
                 await _context.SaveChangesAsync();
-                return Ok(userRequest);
+
+                // HTTP yanıtında id alanını göstermemek için yeni bir anonim nesne döndürebiliriz
+                var responseDto = new
+                {
+                    newUser.UserName,
+                    newUser.SurName,
+                    newUser.UserStatus,
+                    newUser.Age,
+                    newUser.TcNo,
+                    newUser.PhoneCode,
+                    newUser.PhoneNo
+                };
+
+                return Ok(responseDto);
             }
             catch (Exception ex)
             {
@@ -49,30 +67,23 @@ namespace UserManagement.Controllers
         }
 
         [HttpGet("GetAllUser")]
-        public async Task<List<ResponseModel>> GetAllUser()
+        public async Task<List<object>> GetAllUser()
         {
             var users = await _context.ResponseModels.ToListAsync();
-            return users.Select(q => new ResponseModel
+            return users.Select(q => new
             {
-                Id = q.Id,
-                UserName = q.UserName,
-                SurName = q.SurName,
-                UserStatus = q.UserStatus,
-                Age = q.Age,
-                TcNo = q.TcNo,
-                PhoneCode = q.PhoneCode,
-                PhoneNo = q.PhoneNo,
-                Password = q.Password,
-
-            }).ToList();
+                q.UserName,
+                q.SurName,
+                q.UserStatus,
+                q.Age,
+                q.TcNo,
+                q.PhoneCode,
+                q.PhoneNo,
+               
+            }).ToList<object>();
         }
 
-        [HttpGet("GetUsers")]
-        public IActionResult GetUsers()
-        {
-            var user = _context.ResponseModels.ToList();
-            return Ok(user);
-        }
+
 
         [HttpGet("GetUserById")]
         public IActionResult GetUserById(int id)
@@ -81,10 +92,20 @@ namespace UserManagement.Controllers
 
             if (user == null)
             {
-                return NotFound();
+                return NotFound("User Not Found.");
             }
-
-            return Ok(user);
+            var response = new
+            {
+                user.UserName,
+                user.SurName,
+                user.UserStatus,
+                user.Age,
+                user.TcNo,
+                user.PhoneCode,
+                user.PhoneNo,
+              
+            };
+            return Ok(response);
         }
 
         [HttpDelete("Delete_User")]
@@ -105,30 +126,40 @@ namespace UserManagement.Controllers
 
 
         [HttpPut("UserUpdate")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] ResponseModel updatedUser)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto updatedUserDto)
         {
-
             var userToUpdate = await _context.ResponseModels.FirstOrDefaultAsync(u => u.Id == id);
             if (userToUpdate == null)
             {
-                return NotFound();
+                return NotFound("User Not Found.");
             }
 
-            userToUpdate.UserName = updatedUser.UserName;
-            userToUpdate.SurName = updatedUser.SurName;
-            userToUpdate.UserStatus = updatedUser.UserStatus;
-            userToUpdate.Age = updatedUser.Age;
-            userToUpdate.TcNo = updatedUser.TcNo;
-            userToUpdate.PhoneCode = updatedUser.PhoneCode;
-            userToUpdate.PhoneNo = updatedUser.PhoneNo;
-            userToUpdate.Password = updatedUser.Password;
+
+            userToUpdate.UserName = updatedUserDto.UserName;
+            userToUpdate.SurName = updatedUserDto.SurName;
+            userToUpdate.UserStatus = updatedUserDto.UserStatus;
+            userToUpdate.Age = updatedUserDto.Age;
+            userToUpdate.TcNo = updatedUserDto.TcNo;
+            userToUpdate.PhoneCode = updatedUserDto.PhoneCode;
+            userToUpdate.PhoneNo = updatedUserDto.PhoneNo;
+            userToUpdate.Password = updatedUserDto.Password;
+
             _context.ResponseModels.Update(userToUpdate);
             await _context.SaveChangesAsync();
-            return Ok(userToUpdate);
+
+          
+            return Ok(new
+            {
+                userToUpdate.UserName,
+                userToUpdate.SurName,
+                userToUpdate.UserStatus,
+                userToUpdate.Age,
+                userToUpdate.TcNo,
+                userToUpdate.PhoneCode,
+                userToUpdate.PhoneNo,
+              
+            });
         }
-        
-
-
     }
 
 

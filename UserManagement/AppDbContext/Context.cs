@@ -16,7 +16,6 @@ namespace UserManagement.AppDbContext
 
             modelBuilder.Entity<ResponseModel>()
                 .HasKey(t => t.Id);
-
         }
 
        
