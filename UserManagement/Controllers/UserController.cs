@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using UserManagement.AppDbContext;
 using UserManagement.Models;
 using System.Security.Cryptography;
+using System.Text;
 
 
 namespace UserManagement.Controllers
@@ -30,7 +31,7 @@ namespace UserManagement.Controllers
 
                 string hashedPassword = BCrypt.Net.BCrypt.HashPassword(userDto.Password);
 
-                // Yeni kullanıcı oluştur
+               
                 var newUser = new ResponseModel
                 {
                     UserName = userDto.UserName,
@@ -40,13 +41,12 @@ namespace UserManagement.Controllers
                     TcNo = userDto.TcNo,
                     PhoneCode = userDto.PhoneCode,
                     PhoneNo = userDto.PhoneNo,
-                    Password = hashedPassword // Hashlenmiş şifreyi kaydet
+                    Password = hashedPassword 
                 };
 
                 await _context.ResponseModels.AddAsync(newUser);
                 await _context.SaveChangesAsync();
 
-                // HTTP yanıtında id alanını göstermemek için yeni bir anonim nesne döndürebiliriz
                 var responseDto = new
                 {
                     newUser.UserName,
@@ -63,6 +63,45 @@ namespace UserManagement.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("Login")]
+        public async Task<IActionResult> Login([FromBody] UpdateUserDto model)
+        {
+            try
+            {
+               
+                var user = await _context.ResponseModels.FirstOrDefaultAsync(u => u.UserName == model.UserName);
+
+                if (user == null)
+                {
+                    return BadRequest("Kullanıcı adı veya şifre hatalı.");
+                }
+
+               
+                if (!BCrypt.Net.BCrypt.Verify(model.Password, user.Password))
+                {
+                   
+                    return BadRequest("Kullanıcı adı veya şifre hatalı.");
+                }
+
+                return Ok("Giriş başarılı!");
+            }
+            catch (Exception ex)
+            {
+                
+                return StatusCode(500, $"İç sunucu hatası: {ex.Message}");
+            }
+        }
+
+
+        private string HashPassword(string password)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
             }
         }
 
@@ -160,7 +199,10 @@ namespace UserManagement.Controllers
               
             });
         }
+      
+
+
     }
 
-
+    
 }
